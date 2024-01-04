@@ -1,0 +1,102 @@
+import opensimplex
+import random
+import pygame
+
+width = 1100
+length = 600
+# pygame setup
+pygame.init()
+screen = pygame.display.set_mode((width, length))
+clock = pygame.time.Clock()
+running = True
+dt = 0
+scale = 2
+maxVel = 3
+strength = 0.9
+ballRad = []
+popSize = 80
+ballPos = []
+ballVel = []
+ballColor = []
+bouncePower = 3
+ballBounce = 2
+ballRange =2
+offset = 100
+for i in range(popSize):
+    ballColor.append("blue")
+    ballRad.append(12)
+    ballPos.append(pygame.Vector2(random.randint(0, width), random.randint(0, length)))
+    ballVel.append(pygame.Vector2(0, 0))
+
+
+def DrawBalls():
+    for i in range(popSize):
+
+        pygame.draw.circle(screen, ballColor[i], ballPos[i], ballRad[i])
+
+
+def ApplyVel(iteration):
+    for i in range(popSize):
+        iteration += i * offset
+        ballVel[i].x += (opensimplex.noise2(x=iteration* scale, y=0)) * strength
+        ballVel[i].y += (opensimplex.noise2(x=0, y=iteration*scale)) * strength
+        if ballVel[i].x > maxVel: ballVel[i].x = maxVel
+        if ballVel[i].y > maxVel: ballVel[i].y = maxVel
+
+        ballPos[i].x += ballVel[i].x
+        ballPos[i].y += ballVel[i].y
+
+
+def BallCollisions():
+    # border col
+    for i in range(popSize):
+        if ballPos[i].y >= length - ballRad[i]:
+            ballVel[i].y = -1 * bouncePower
+        elif ballPos[i].y <= ballRad[i]:
+            ballVel[i].y = 1 * bouncePower
+        if ballPos[i].x >= width - ballRad[i]:
+            ballVel[i].x = -1 * bouncePower
+        elif ballPos[i].x <= ballRad[i]:
+            ballVel[i].x = 1 * bouncePower
+    # ball on ball coll
+    for i in range(popSize):
+        for j in range(popSize):
+            if i != j:
+                if ballPos[j].x + (ballRad[j]) >= ballPos[i].x >= ballPos[j].x - (ballRad[j]) and ballPos[j].y + (ballRad[j]) >= ballPos[i].y >= ballPos[j].y - (ballRad[j]):
+                    if ballColor[i] == 'blue' and ballColor[j] == 'blue':
+                        ballColor[i] = "red"
+                        ballRad[i] = 4
+                        ballVel[i].x *= -1*ballBounce
+                        ballVel[i].y *= -1*ballBounce
+                        ballColor[j] = "red"
+                        ballRad[j] = 4
+                        ballVel[j].x *= -1 * ballBounce
+                        ballVel[j].y *= -1 * ballBounce
+
+
+iteration = 0
+
+while running:
+    # poll for events
+    # pygame.QUIT event means the user clicked X to close your window
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # fill the screen with a color to wipe away anything from last frame
+    screen.fill("white")
+    DrawBalls()
+
+    keys = pygame.key.get_pressed()
+    iteration += 1
+
+    ApplyVel(iteration)
+
+    BallCollisions()
+
+    pygame.display.flip()
+
+    dt = clock.tick(60) / 1000
+
+pygame.quit()
