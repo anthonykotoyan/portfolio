@@ -1,0 +1,121 @@
+import pygame
+import math
+
+# pygame setup
+pygame.init()
+length, width = 600, 600
+screen = pygame.display.set_mode((length, width))
+clock = pygame.time.Clock()
+running = True
+
+ballRad = 7
+gravity = -1
+slopeFy = 1 / (10 ** 4.5)
+
+slopeFx = 1/(10**2)
+
+msDown = False
+msPressed = False
+theta = 0
+
+deadZone = 6
+
+momentum = 0
+
+step = 0
+def DrawLine():
+    pygame.draw.line(screen, 'blue', anchor.pos, pendulum.pos, 3)
+
+
+def ApplyForce(force,acc,axis):
+    if axis == 'y':
+        if acc == '+=':pendulum.vel.y += force
+        else:pendulum.vel.y = force
+    else:
+        if acc == '+=':pendulum.vel.x += force
+        else:pendulum.vel.x = force
+
+    if not msDown:
+        AdjustPos()
+
+def AdjustPos():
+    currentDist = math.sqrt((pendulum.pos.x - anchor.pos.x) ** 2 + (pendulum.pos.y - anchor.pos.y) ** 2)
+    pendulum.pos.y += (currentDist - dist) / currentDist * (anchor.pos.y - pendulum.pos.y)
+    pendulum.pos.x += (currentDist - dist)/currentDist * (anchor.pos.x - pendulum.pos.x)
+
+
+class Nodi:
+    allNodis = []
+
+    def __init__(self, pos, size, color, vel):
+        self.pos = pos
+        self.size = size
+        self.color = color
+        self.vel = vel
+        Nodi.allNodis.append(self)
+
+
+anchor = Nodi(pygame.Vector2(length / 2, width / 2), 4, 'white', pygame.Vector2(0,0))
+pendulum = Nodi(pygame.Vector2(length / 2, width / 1.25), ballRad, 'green', pygame.Vector2(0, 0))
+dist = math.sqrt((pendulum.pos.x - anchor.pos.x) ** 2 + (pendulum.pos.y - anchor.pos.y) ** 2)
+while running:
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+    mouse_pressed = pygame.mouse.get_pressed()
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    keys = pygame.key.get_pressed()
+    screen.fill("black")
+
+    if pendulum.pos.x > anchor.pos.x:
+        momentum = 1*dist
+    elif -deadZone < pendulum.pos.x - anchor.pos.x < deadZone:
+        momentum = 0
+    else:
+        momentum = -1*dist
+    if pendulum.pos.y < anchor.pos.y:
+        pendulum.pos.y = 2*(anchor.pos.y)-pendulum.pos.y
+
+    # constant forces
+
+    pendulum.pos.y -= pendulum.vel.y
+    pendulum.pos.x -= pendulum.vel.x
+
+
+
+    #-dist/(math.sqrt(dist/-gravity)*6.28)
+
+
+    ApplyForce(momentum * slopeFx, '+=', 'x')
+    ApplyForce(dist / gravity * slopeFy, '+=', 'y')
+
+
+    DrawLine()
+    pygame.draw.circle(screen, anchor.color, anchor.pos, anchor.size)
+    pygame.draw.circle(screen, pendulum.color, pendulum.pos, pendulum.size)
+
+
+
+    step +=1
+    if mouse_pressed[0]:
+
+        pendulum = Nodi(pygame.Vector2(mouse_x, mouse_y), ballRad, 'green', pygame.Vector2(0, 0))
+        if mouse_y == anchor.pos.y:
+            mouse_y += 1
+        theta = math.degrees(math.atan((anchor.pos.x - mouse_x)/(anchor.pos.y - mouse_y)))
+
+        msDown = True
+        msPressed = True
+    else:
+        msDown = False
+    if not msDown and msPressed:
+        dist = math.sqrt((mouse_x - anchor.pos.x) ** 2 + (mouse_y - anchor.pos.y) ** 2)
+        msPressed = False
+
+
+    pygame.display.flip()
+
+    clock.tick(60)
+
+pygame.quit()
