@@ -1,9 +1,12 @@
+import math
+
 import opensimplex
 import random
 import pygame
 
 width = 1100
 length = 600
+runSpeed = 10
 # pygame setup
 pygame.init()
 screen = pygame.display.set_mode((width, length))
@@ -11,23 +14,56 @@ clock = pygame.time.Clock()
 running = True
 dt = 0
 scale = 2
-maxVel = 3
-strength = 0.9
+oppForce = 0.5
+maxVel = 2
+strength = 0.5
+blueRad = 12
+redRad = 4
 ballRad = []
 popSize = 80
 ballPos = []
 ballVel = []
 ballColor = []
+mainBalls = []
+attachedBalls = []
+outerRing = 1.3
 bouncePower = 3
 ballBounce = 2
 ballRange =2
-offset = 100
+offset = 900
 for i in range(popSize):
     ballColor.append("blue")
-    ballRad.append(12)
+    ballRad.append(blueRad)
     ballPos.append(pygame.Vector2(random.randint(0, width), random.randint(0, length)))
     ballVel.append(pygame.Vector2(0, 0))
 
+def JoinBalls(b1,b2):
+    if b1 not in mainBalls:
+        mainBalls.append(b1)
+        attachedBalls.append([b2])
+    else:
+        attachedBalls[mainBalls.index(b1)].append(b2)
+def UnattachBalls(ball):
+    if ball in mainBalls:
+        attachedBalls[mainBalls.index(ball)].clear()
+        mainBalls.remove(ball)
+
+
+
+
+
+
+
+
+
+
+def attachBallToBall():
+    for i in range(len(mainBalls)):
+        for j in range(len(attachedBalls[i])):
+            apartD = math.radians(360/len(attachedBalls[i]))
+            deg = apartD*(j+1)
+            ballPos[attachedBalls[i][j]].x = ballPos[mainBalls[i]].x + math.cos(deg)*(ballRad[mainBalls[i]]+ballRad[attachedBalls[i][j]])*outerRing
+            ballPos[attachedBalls[i][j]].y = ballPos[mainBalls[i]].y + math.sin(deg)*(ballRad[mainBalls[i]]+ballRad[attachedBalls[i][j]])*outerRing
 
 def DrawBalls():
     for i in range(popSize):
@@ -38,13 +74,15 @@ def DrawBalls():
 def ApplyVel(iteration):
     for i in range(popSize):
         iteration += i * offset
-        ballVel[i].x += (opensimplex.noise2(x=iteration* scale, y=0)) * strength
-        ballVel[i].y += (opensimplex.noise2(x=0, y=iteration*scale)) * strength
+        ballVel[i].x += ((opensimplex.noise2(x=iteration* scale, y=0)) * strength)*(runSpeed/10)
+        ballVel[i].y += ((opensimplex.noise2(x=0, y=iteration*scale)) * strength)*(runSpeed/10)
         if ballVel[i].x > maxVel: ballVel[i].x = maxVel
         if ballVel[i].y > maxVel: ballVel[i].y = maxVel
 
         ballPos[i].x += ballVel[i].x
         ballPos[i].y += ballVel[i].y
+        ballPos[i].x += oppForce
+        ballPos[i].y += oppForce
 
 
 def BallCollisions():
@@ -62,16 +100,39 @@ def BallCollisions():
     for i in range(popSize):
         for j in range(popSize):
             if i != j:
-                if ballPos[j].x + (ballRad[j]) >= ballPos[i].x >= ballPos[j].x - (ballRad[j]) and ballPos[j].y + (ballRad[j]) >= ballPos[i].y >= ballPos[j].y - (ballRad[j]):
+                if ballPos[j].x + (ballRad[j]*2) >= ballPos[i].x >= ballPos[j].x - (ballRad[j]*2) and ballPos[j].y + (ballRad[j]*2) >= ballPos[i].y >= ballPos[j].y - (ballRad[j]*2):
                     if ballColor[i] == 'blue' and ballColor[j] == 'blue':
                         ballColor[i] = "red"
-                        ballRad[i] = 4
+                        ballRad[i] = redRad
                         ballVel[i].x *= -1*ballBounce
                         ballVel[i].y *= -1*ballBounce
+                        UnattachBalls(i)
                         ballColor[j] = "red"
-                        ballRad[j] = 4
+                        ballRad[j] = redRad
                         ballVel[j].x *= -1 * ballBounce
                         ballVel[j].y *= -1 * ballBounce
+                        UnattachBalls(j)
+                    elif ballColor[i] == 'red' and ballColor[j] == 'red':
+                        ballColor[i] = "green"
+                        ballRad[i] = redRad*1.4
+                        ballVel[i].x *= -1 * ballBounce
+                        ballVel[i].y *= -1 * ballBounce
+                        ballColor[j] = "green"
+                        ballRad[j] = redRad*1.4
+                        ballVel[j].x *= -1 * ballBounce
+                        ballVel[j].y *= -1 * ballBounce
+                    elif ballColor[i] == 'red' and ballColor[j] == 'green':
+                        if random.randint(0,1)== 0:
+                            ballColor[i] = "purple"
+                            ballRad[i] = blueRad/4
+                        ballVel[i].x *= -1 * ballBounce
+                        ballVel[i].y *= -1 * ballBounce
+                        ballColor[j] = "blue"
+                        ballRad[j] = blueRad
+                        ballVel[j].x *= -1 * ballBounce
+                        ballVel[j].y *= -1 * ballBounce
+                    elif ballColor[i] == 'blue' and ballColor[j] == 'purple':
+                        JoinBalls(i,j)
 
 
 iteration = 0
@@ -84,19 +145,28 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+
+
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("white")
     DrawBalls()
 
     keys = pygame.key.get_pressed()
+
+    if keys[pygame.K_s]:
+        runSpeed += 1
+    if keys[pygame.K_n]:
+        runSpeed -= 1
+
     iteration += 1
 
     ApplyVel(iteration)
 
     BallCollisions()
-
+    attachBallToBall()
     pygame.display.flip()
 
-    dt = clock.tick(60) / 1000
+    dt = clock.tick(60)
+
 
 pygame.quit()
