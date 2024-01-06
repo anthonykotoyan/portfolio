@@ -1,0 +1,81 @@
+import pygame
+import random
+import math
+
+# pygame setup
+pygame.init()
+width = 1000
+length = 620
+screen = pygame.display.set_mode((width, length))
+
+
+clock = pygame.time.Clock()
+running = True
+dt = 0
+
+speed = 4
+
+ellipseColor = [random.randint(100, 255), random.randint(150, 255), random.randint(50, 255)]
+a = 400
+b = 250
+focalPoints = [pygame.Vector2(width /2 + math.sqrt((a**2 - b**2)),length / 2),pygame.Vector2((width /2 - (math.sqrt((a**2 - b**2)))),length / 2)]
+ellipsePos = pygame.Rect((width / 2 - a, length / 2 - b), (a*2, b*2))
+
+
+class Particle:
+    def __init__(self, size, color,pos):
+        self.pos = pos
+        self.vel = pygame.Vector2(0,0)
+        self.size = size
+        self.color = color
+
+
+    def UpdateParticle(self):
+        # col check
+        distFromFocalPoints = [math.sqrt((focalPoints[0].x - self.pos.x) ** 2 + (focalPoints[0].y - self.pos.y) ** 2),
+                               math.sqrt((focalPoints[1].x - self.pos.x) ** 2 + (focalPoints[1].y - self.pos.y) ** 2)]
+
+        if sum(distFromFocalPoints) > (a * 2):
+            xVel = self.vel.x
+            self.vel.x = self.vel.y
+            self.vel.y = -xVel
+
+
+
+        pygame.draw.circle(screen, self.color, self.pos, self.size)
+        self.pos.x += self.vel.x
+        self.pos.y += self.vel.y
+
+
+screenColor = [random.randint(0, 150), random.randint(0, 150), random.randint(0, 150)]
+particle = Particle(5, screenColor,pygame.Vector2(random.uniform(1,-1)*a/2 + width/2,random.uniform(1,-1)*b/2+ length/2))
+particle.vel.x = random.uniform(speed,-speed)
+particle.vel.y = random.uniform(speed,-speed)
+while running:
+    # poll for events
+    # pygame.QUIT event means the user clicked X to close your window
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    screen.fill(screenColor)
+    #focal points
+    pygame.draw.ellipse(screen, ellipseColor, ellipsePos)
+    for i in range(2):
+        pygame.draw.circle(screen, screenColor, focalPoints[i], 2)
+        pygame.draw.line(screen, screenColor,focalPoints[i],particle.pos)
+
+
+
+    particle.UpdateParticle()
+
+    keys = pygame.key.get_pressed()
+
+    pygame.display.flip()
+
+    # limits FPS to 60
+    # dt is delta time in seconds since last frame, used for frame rate-
+    # independent physics.
+    dt = clock.tick(60) / 1000
+
+pygame.quit()
