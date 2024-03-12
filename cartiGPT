@@ -1,5 +1,8 @@
-# wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-with open('C:/Programming/nanoGPT/cartiLyrics.txt', 'r', encoding='utf-8') as f:
+import time
+import keyboard
+
+
+with open("C:/akotoy/datasets/TwitterConvCorpus.txt", "r", encoding='utf-8') as f:
     text = f.read()
 import torch
 import torch.nn as nn
@@ -7,14 +10,14 @@ from torch.nn import functional as F
 
 # hyperparameters
 batch_size = 32 # how many independent sequences will we process in parallel?
-block_size = 128 # what is the maximum context length for predictions?
+block_size = 64 # what is the maximum context length for predictions?
 max_iters = 5000
-eval_interval = 500
-learning_rate = 2e-4
+eval_interval = 10
+learning_rate = 4e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
 eval_iters = 200
-n_embd = 150
+n_embd = 200
 n_head = 3
 n_layer = 3
 dropout = 0.2
@@ -202,6 +205,8 @@ class GPTLanguageModel(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
+
+            print(decode(idx_next[0].tolist()),end='')
         return idx
 
 
@@ -212,22 +217,26 @@ model = model.to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
-file_path = "C:/Users/kotoy/Desktop/cartiAiLyrics.txt"
+file_path = "C:/akotoy/datasets/TwitterAI.txt"
 
 
 user_input = input("Type train or press enter to generate: ")
-token_amount = 10000
+
 if user_input == 'train':
     # Train the model
     model = GPTLanguageModel()
     model = model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-
+    modelName = input("name the model: ")
     for iter in range(max_iters):
+        start_time = time.time()
+
         # Every once in a while, evaluate the loss on train and val sets
         if iter % eval_interval == 0 or iter == max_iters - 1:
             losses = estimate_loss()
             print(f"Step {iter}: Train loss {losses['train']:.4f}, Val loss {losses['val']:.4f}")
+            end_time = time.time()
+            print(end_time-start_time)
 
         # Sample a batch of data
         xb, yb = get_batch('train')
@@ -238,29 +247,42 @@ if user_input == 'train':
         loss.backward()
         optimizer.step()
 
+
+        # if losses['val'] <=.9: break
+        if keyboard.is_pressed('s'): break
+
     # Save the trained model
-    torch.save(model.state_dict(), 'gpt_model.pth')
+    f = open("more.txt", "w")
+    f.write(f"model = {modelName}\n")
+    torch.save(model.state_dict(), f'{modelName}.pth')
     print("Model trained and saved successfully.")
 
 elif user_input == '':
-    # Load the previously trained model for text generation
-    loaded_model = GPTLanguageModel()
-    loaded_model.load_state_dict(torch.load('gpt_model.pth'))
-    loaded_model = loaded_model.to(device)
+    run = True
+    while run:
+        model = input("name of model: ")
+        # Load the previously trained model for text generation
+        loaded_model = GPTLanguageModel()
+        loaded_model.load_state_dict(torch.load(f'{model}.pth'))
+        loaded_model = loaded_model.to(device)
 
-    # Manually set the initial context
-    initial_context = "Fuck these niggas man (what?)"
+        # Manually set the initial context
+        token_amount = int(input("How many chars (tokens): "))
+        initial_context = input("Choose the song title: ")
+        print(f"\nTitle: {initial_context}:")
 
+        # Encode the initial context to get the initial input sequence
+        initial_context_encoded = torch.tensor(encode(initial_context), dtype=torch.long, device=device).unsqueeze(0)
 
-    # Encode the initial context to get the initial input sequence
-    initial_context_encoded = torch.tensor(encode(initial_context), dtype=torch.long, device=device).unsqueeze(0)
+        # Generate text using the loaded model and the manually set context
+        generated_text = decode(loaded_model.generate(initial_context_encoded, max_new_tokens=token_amount)[0].tolist())
+        file_text = f"\n\n\nSTART HERE:\n\n\n {generated_text}. \n\n\nEND HERE\n\n\n"
 
-    # Generate text using the loaded model and the manually set context
-    generated_text = decode(loaded_model.generate(initial_context_encoded, max_new_tokens=token_amount)[0].tolist())
-    file_text = f"\n\n\nSTART HERE:\n\n\n {generated_text}. \n\n\nEND HERE\n\n\n"
-    print("\nStart{\n", generated_text, ". \nEnd\n")
-    with open(file_path, 'a') as file:
-        file.write(file_text)
+        with open(file_path, 'a', encoding='utf-8') as file:
+            file.write(file_text)
+        if input("\nagain? [y/n] ") != "y":
+            run = False
+
 
 else:
     print("Invalid input. Please enter either 1 or 2.")
